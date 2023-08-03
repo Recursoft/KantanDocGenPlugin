@@ -157,14 +157,14 @@ bool FNodeDocsGenerator::GenerateNodeImage(UEdGraphNode* Node, FNodeProcessingSt
 
 	FIntRect Rect;
 
-	TUniquePtr<TImagePixelData<FColor>> PixelData;
+	TUniquePtr<TImagePixelData<FLinearColor>> PixelData;
 
 	bSuccess = DocGenThreads::RunOnGameThreadRetVal([this, Node, DrawSize, &Rect, &PixelData]
 	{
 		auto NodeWidget = FNodeFactory::CreateNodeWidget(Node);
 		NodeWidget->SetOwner(GraphPanel.ToSharedRef());
 
-		const bool bUseGammaCorrection = false;
+		const bool bUseGammaCorrection = true;
 		FWidgetRenderer Renderer(bUseGammaCorrection);
 		Renderer.SetIsPrepassNeeded(true);
 		auto RenderTarget = Renderer.DrawWidget(NodeWidget.ToSharedRef(), DrawSize);
@@ -174,12 +174,12 @@ bool FNodeDocsGenerator::GenerateNodeImage(UEdGraphNode* Node, FNodeProcessingSt
 		FTextureRenderTargetResource* RTResource = RenderTarget->GameThread_GetRenderTargetResource();
 		Rect = FIntRect(0, 0, (int32)Desired.X, (int32)Desired.Y);
 		FReadSurfaceDataFlags ReadPixelFlags(RCM_UNorm);
-		ReadPixelFlags.SetLinearToGamma(true); // @TODO: is this gamma correction, or something else?
+		ReadPixelFlags.SetLinearToGamma(false); // @TODO: is this gamma correction, or something else?
 
-		PixelData = MakeUnique<TImagePixelData<FColor>>(FIntPoint((int32)Desired.X, (int32)Desired.Y));
+		PixelData = MakeUnique<TImagePixelData<FLinearColor>>(FIntPoint((int32)Desired.X, (int32)Desired.Y));
 		PixelData->Pixels.SetNumUninitialized(Desired.X * Desired.Y);
 
-		if(RTResource->ReadPixelsPtr(PixelData->Pixels.GetData(), ReadPixelFlags, Rect) == false)
+		if(RTResource->ReadLinearColorPixelsPtr(PixelData->Pixels.GetData(), ReadPixelFlags, Rect) == false)
 		{
 			UE_LOG(LogKantanDocGen, Warning, TEXT("Failed to read pixels for node image."));
 			return false;
@@ -204,7 +204,7 @@ bool FNodeDocsGenerator::GenerateNodeImage(UEdGraphNode* Node, FNodeProcessingSt
 	ImageTask->Format = EImageFormat::PNG;
 	ImageTask->CompressionQuality = (int32)EImageCompressionQuality::Default;
 	ImageTask->bOverwriteFile = true;
-	ImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FColor>(255));
+	ImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FLinearColor>(255));
 	
 	if(ImageTask->RunTask())
 	{
