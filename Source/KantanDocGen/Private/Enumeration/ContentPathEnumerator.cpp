@@ -6,8 +6,8 @@
 
 #include "ContentPathEnumerator.h"
 #include "KantanDocGenLog.h"
-#include "AssetRegistryModule.h"
-#include "ARFilter.h"
+#include "AssetRegistry/AssetRegistryModule.h"
+#include "AssetRegistry/ARFilter.h"
 #include "Engine/Blueprint.h"
 #include "Animation/AnimBlueprint.h"
 
