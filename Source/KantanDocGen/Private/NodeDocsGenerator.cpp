@@ -30,6 +30,7 @@
 #include "ThreadingHelpers.h"
 #include "Stats/StatsMisc.h"
 #include "Runtime/ImageWriteQueue/Public/ImageWriteTask.h"
+#include "Math/UnrealMathUtility.h"
 
 FNodeDocsGenerator::~FNodeDocsGenerator()
 {
@@ -143,6 +144,26 @@ void FNodeDocsGenerator::CleanUp()
 	}
 }
 
+/**
+ * Multiply each pixel alpha by the input alpha.
+ */
+struct TAsyncAlphaMultiplier
+{
+	float AlphaMulti;
+	TAsyncAlphaMultiplier(float InAlphaMulti) : AlphaMulti(InAlphaMulti) {}
+
+	void operator()(FImagePixelData* PixelData)
+	{
+		check(PixelData->GetType() == EImagePixelType::Float32);
+
+		TImagePixelData<FLinearColor>* LinearColorData = static_cast<TImagePixelData<FLinearColor>*>(PixelData);
+		for (FLinearColor& Pixel : LinearColorData->Pixels)
+		{
+			Pixel.A = FMath::Min(1.f, Pixel.A * AlphaMulti);
+		}
+	}
+};
+
 bool FNodeDocsGenerator::GenerateNodeImage(UEdGraphNode* Node, FNodeProcessingState& State)
 {
 	SCOPE_SECONDS_COUNTER(GenerateNodeImageTime);
@@ -205,7 +226,9 @@ bool FNodeDocsGenerator::GenerateNodeImage(UEdGraphNode* Node, FNodeProcessingSt
 	ImageTask->Format = EImageFormat::PNG;
 	ImageTask->CompressionQuality = (int32)EImageCompressionQuality::Default;
 	ImageTask->bOverwriteFile = true;
-	ImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FLinearColor>(255));
+	// Default alpha isn't 1 for most of the node, but the background is 0, so we just need to multiply by a small amount
+	// to achieve an opaque node with transparent background.
+	ImageTask->PixelPreProcessors.Add(TAsyncAlphaMultiplier(2.f));
 	
 	if(ImageTask->RunTask())
 	{
