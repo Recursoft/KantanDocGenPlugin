@@ -169,15 +169,16 @@ bool FNodeDocsGenerator::GenerateNodeImage(UEdGraphNode* Node, FNodeProcessingSt
 		Renderer.SetIsPrepassNeeded(true);
 		auto RenderTarget = Renderer.DrawWidget(NodeWidget.ToSharedRef(), DrawSize);
 
-		auto Desired = NodeWidget->GetDesiredSize();
+		const FVector2D DesiredDouble = NodeWidget->GetDesiredSize();
+		const FIntPoint DesiredInt(DesiredDouble.X, DesiredDouble.Y);
 	
 		FTextureRenderTargetResource* RTResource = RenderTarget->GameThread_GetRenderTargetResource();
-		Rect = FIntRect(0, 0, (int32)Desired.X, (int32)Desired.Y);
+		Rect = FIntRect(0, 0, DesiredInt.X, DesiredInt.Y);
 		FReadSurfaceDataFlags ReadPixelFlags(RCM_UNorm);
 		ReadPixelFlags.SetLinearToGamma(false); // @TODO: is this gamma correction, or something else?
 
-		PixelData = MakeUnique<TImagePixelData<FLinearColor>>(FIntPoint((int32)Desired.X, (int32)Desired.Y));
-		PixelData->Pixels.SetNumUninitialized(Desired.X * Desired.Y);
+		PixelData = MakeUnique<TImagePixelData<FLinearColor>>(DesiredInt);
+		PixelData->Pixels.SetNumUninitialized(DesiredInt.X * DesiredInt.Y);
 
 		if(RTResource->ReadLinearColorPixelsPtr(PixelData->Pixels.GetData(), ReadPixelFlags, Rect) == false)
 		{
